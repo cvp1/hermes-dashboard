@@ -1,0 +1,65 @@
+[
+  {
+    "label": "Ranch Status",
+    "href": "http://192.168.86.77:8088/",
+    "desc": "Solar / battery / smarthub",
+    "ico": "\ud83d\udcca",
+    "ext": "\u2197"
+  },
+  {
+    "label": "Uptime Kuma",
+    "href": "http://192.168.86.77:3001/",
+    "desc": "Availability monitoring",
+    "ico": "\ud83d\udfe2",
+    "ext": "\u2197"
+  },
+  {
+    "label": "Grafana",
+    "href": "http://192.168.86.77:3000/",
+    "desc": "Energy & metrics",
+    "ico": "\ud83d\udcc8",
+    "ext": "\u2197"
+  },
+  {
+    "label": "Frigate NVR",
+    "href": "https://192.168.86.77:8971/",
+    "desc": "Camera object detection",
+    "ico": "\ud83d\udcf9",
+    "ext": "\u2197"
+  },
+  {
+    "label": "Open WebUI",
+    "href": "http://192.168.86.77:3080/",
+    "desc": "Local LLM front-end",
+    "ico": "\ud83d\udcac",
+    "ext": "\u2197"
+  },
+  {
+    "label": "Home Assistant",
+    "href": "http://192.168.86.75:8123/",
+    "desc": "Automation hub",
+    "ico": "\ud83c\udfe0",
+    "ext": "\u2197"
+  },
+  {
+    "label": "Ranch Weather",
+    "href": "http://192.168.86.77:8080/weather/",
+    "desc": "48h / 7-day forecast",
+    "ico": "\ud83c\udf24\ufe0f",
+    "ext": "\u2192"
+  },
+  {
+    "label": "Memory Graph",
+    "href": "http://192.168.86.77:8080/reports/memory/",
+    "desc": "Knowledge map",
+    "ico": "\ud83e\udde0",
+    "ext": "\u2192"
+  },
+  {
+    "label": "N0CVP Logbook",
+    "href": "http://192.168.86.77:8080/qrz/",
+    "desc": "Ham radio QSO map",
+    "ico": "\ud83d\udcfb",
+    "ext": "\u2192"
+  }
+]
