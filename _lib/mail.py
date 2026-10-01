@@ -1,4 +1,5 @@
 """SMTP send helpers: Gmail (app password) and Proton Mail Bridge."""
+import os
 import smtplib
 import ssl
 from email.message import EmailMessage
@@ -8,7 +9,7 @@ from . import secrets
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 1026
-DEFAULT_SENDER = "craig.vandeputte@proton.me"
+DEFAULT_SENDER = os.environ.get("MAIL_SENDER", "you@proton.me")
 DEFAULT_PW_FILE = "~/dex/mail_bridge"
 
 
@@ -47,7 +48,7 @@ def send_proton_bridge(subject, body, to=DEFAULT_SENDER, sender=DEFAULT_SENDER, 
 # Gmail SMTP transport; requires a Google App Password.
 GMAIL_HOST = "smtp.gmail.com"
 GMAIL_PORT = 465  # implicit TLS
-GMAIL_SENDER = "craig.vandeputte@gmail.com"
+GMAIL_SENDER = os.environ.get("GMAIL_SENDER", "you@gmail.com")
 GMAIL_PW_FILE = "~/.key/gmail_app"
 
 

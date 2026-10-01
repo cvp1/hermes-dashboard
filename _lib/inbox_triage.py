@@ -23,22 +23,22 @@ STATE_FILE = os.path.join(CC, "_lib", "inbox_triage_state.json")
 
 OLLAMA_URL = "http://192.168.86.21:11434/api/chat"
 OLLAMA_MODEL = "gemma4:e4b"
-DEFAULT_ALERT = "craig.vandeputte@proton.me"
+DEFAULT_ALERT = os.environ.get("TRIAGE_ALERT_EMAIL", "you@example.com")
 
 # Proton Mail Bridge IMAP
 PROTON_HOST = "127.0.0.1"
 PROTON_PORT = 1144
-PROTON_USER = "craig.vandeputte@proton.me"
+PROTON_USER = os.environ.get("PROTON_USER", "you@proton.me")
 PROTON_PW_FILE = "~/.key/proton_cvp"
 
-URGENT_PATTERNS = [
-    r"goldman.?sachs", r"gs\b", r"cognizant", r"urgent", r"action required",
+# Extra comma-separated regexes (e.g. key client names) via TRIAGE_URGENT_PATTERNS.
+URGENT_PATTERNS = [p for p in os.environ.get("TRIAGE_URGENT_PATTERNS", "").split(",") if p] + [
+    r"urgent", r"action required",
     r"deadline", r"asap", r"today", r"meeting.*change", r"schedule.*conflict",
     r"client.*call", r"review.*by",
 ]
-TOP_PEOPLE = [
-    "sheridan", "craig vandeputte",
-]
+# Comma-separated sender names to prioritize.
+TOP_PEOPLE = [n.strip().lower() for n in os.environ.get("TRIAGE_TOP_PEOPLE", "").split(",") if n.strip()]
 
 
 def _now_iso():
