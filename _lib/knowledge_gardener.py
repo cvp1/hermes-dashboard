@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
-"""Knowledge Gardener — daily scan for stale vault notes with related new signals.
+"""Find stale vault notes related to recent signal scans and write update proposals to _inbox/.
 
-Scans notes older than 30 days, cross-references them against recent signal scans
-and frontier developments, and drops update proposals into the /ingest inbox.
-
-Design:
-  - Read-only on the vault (never edits a note directly)
-  - Proposes updates as markdown files in _inbox/ for /ingest to process
-  - Uses the existing knowledge index for semantic matching (nomic-embed-text on .21)
-  - Best-effort: failures degrade to a note, never break the cron run
+Read-only on existing notes.
 
 Usage:
     python3 knowledge_gardener.py [--dry-run] [--stale-days 45]
@@ -30,7 +23,7 @@ EMBED_URL = "http://192.168.86.21:11434/api/embeddings"
 EMBED_MODEL = "nomic-embed-text"
 
 STALE_DAYS = 30
-MAX_PROPOSALS = 5  # per run — don't overwhelm the inbox
+MAX_PROPOSALS = 5  # per run
 
 
 def _embed(text):
@@ -43,7 +36,6 @@ def _embed(text):
 
 
 def _cosine_sim(a, b):
-    """Cosine similarity between two vectors."""
     import math
     dot = sum(x * y for x, y in zip(a, b))
     na = math.sqrt(sum(x * x for x in a))
@@ -56,7 +48,6 @@ def find_stale_notes(stale_days=STALE_DAYS):
     now = dt.datetime.now().timestamp()
     cutoff = now - stale_days * 86400
     for root, dirs, files in os.walk(VAULT):
-        # Skip hidden/generated dirs
         dirs[:] = [d for d in dirs if not d.startswith(".") and d not in ("_inbox", ".trash")]
         for f in files:
             if not f.endswith(".md"):
@@ -66,8 +57,7 @@ def find_stale_notes(stale_days=STALE_DAYS):
             if mtime > cutoff:
                 continue
             rel = os.path.relpath(path, VAULT)
-            # Skip generated artifacts (signal scans are in 06 Logs/Signals — they're
-            # generated daily and should not be "gardened")
+            # Generated logs are not gardened.
             if rel.startswith("06 Logs/"):
                 continue
             age_days = int((now - mtime) / 86400)
@@ -93,7 +83,7 @@ def find_recent_signals(days_back=14):
         if os.path.exists(path):
             try:
                 text = open(path, encoding="utf-8", errors="replace").read()
-                # Strip frontmatter, keep the signal body
+                # Strip frontmatter
                 text = re.sub(r"^---\n.*?\n---\n", "", text, flags=re.DOTALL)
                 signals.append({"date": d.strftime("%Y-%m-%d"), "text": text[:2000]})
             except Exception:

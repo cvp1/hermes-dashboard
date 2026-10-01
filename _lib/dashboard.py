@@ -158,7 +158,6 @@ def _run_ingest_plan():
             line = line.strip()
             if line and not line.startswith("[") and "inbox" not in line.lower() and "clear" not in line.lower() and "no unprocessed" not in line.lower():
                 sources.append(line)
-        # Count from final summary line
         count = 0
         for line in reversed((r.stdout or "").split("\n")):
             import re
@@ -216,7 +215,6 @@ class Handler(BaseHTTPRequestHandler):
         try:
             decoded = base64.b64decode(auth[6:]).decode()
             user, pwd = decoded.split(":", 1)
-            # Try env vars first, then file
             expected_user = os.environ.get("DASH_USER")
             expected_pwd = os.environ.get("DASH_PASS")
             if expected_user and expected_pwd:
@@ -246,7 +244,6 @@ class Handler(BaseHTTPRequestHandler):
             "/frigate":        os.path.join(HOME, "Github", "CC", "frigate", "docs"),
             "/learn":          os.path.join(HOME, "Github", "CC", "learn"),
         }
-        # Find which root this path maps to
         matched_root = None
         rel = path
         for prefix, root in root_map.items():
@@ -266,7 +263,6 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if os.path.isdir(full):
-            # Serve index.html if exists, else directory listing
             idx = os.path.join(full, "index.html")
             if os.path.isfile(idx):
                 full = idx
@@ -333,7 +329,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self._check_auth(): return
         p = urlparse(self.path).path
         if p == "/":
-            self._html(HTML)  # skills rendered inline in HTML
+            self._html(HTML)
         elif p == "/api/status":
             try: self._json({"checks":[{"label":l,"status":s,"detail":d} for l,s,d in get_checks()]})
             except Exception as e: self._json({"error":str(e)})
@@ -369,12 +365,10 @@ class Handler(BaseHTTPRequestHandler):
         elif p == "/api/all":
             try:
                 checks = [{"label":l,"status":s,"detail":d} for l,s,d in get_checks()]
-                # Events
                 try:
                     b = __import__("_lib.event_bus", fromlist=["EventBus"]).EventBus()
                     evs = [{"source":e["source"],"type":e["type"],"ts":e["ts"]} for e in list(b.subscribe(since_id=0,limit=100))[-30:]]
                 except: evs = []
-                # Agents
                 try:
                     notes = []
                     for f in sorted(os.listdir(AGENTS_DIR), reverse=True)[:15] if os.path.exists(AGENTS_DIR) else []:
@@ -407,7 +401,6 @@ class Handler(BaseHTTPRequestHandler):
                 else: self._json({"error":"path not allowed or not found"})
             else: self._json({"error":"no path"})
         else:
-            # Try serving as static file (docs, reports, weather, etc.)
             self._serve_static(p)
 
     def do_POST(self):
@@ -491,7 +484,6 @@ SKILLS = _discover_skills()
 
 SKILLS_HTML = """<h2>Skills</h2><div id="sk">"""
 if SKILLS:
-    # Split into rough groups by first-letter range
     groups = [("Favorites", SKILLS[:6]), ("More", SKILLS[6:])]
     for gname, items in groups:
         if not items: continue

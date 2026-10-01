@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Event Bus — local SQLite append-only event log for the agent framework.
-
-Every agent publishes and subscribes through this bus. Design:
-
-  - SQLite-backed, single file, no external deps (stdlib)
-  - Append-only: events are never deleted, only marked processed
-  - Subscribers track their cursor via since_id (last event they read)
-  - Lightweight: ~1KB per 1000 events at our volume
+"""Append-only SQLite event log; subscribers track a cursor via ``since_id``.
 
 Usage:
     bus = EventBus()
@@ -154,7 +147,6 @@ class EventBus:
         )
         row = cur.fetchone()
         total, processed, max_id = (row[0] or 0), (row[1] or 0), (row[2] or 0)
-        # Count by type
         cur = self._conn.execute(
             "SELECT type, COUNT(*) FROM events GROUP BY type ORDER BY COUNT(*) DESC LIMIT 10"
         )
@@ -175,9 +167,6 @@ class EventBus:
         self._conn.execute("PRAGMA journal_mode=WAL")
 
 
-# --------------------------------------------------------------------------- #
-# Self-test
-# --------------------------------------------------------------------------- #
 def _selftest():
     import tempfile
     tmp = tempfile.mktemp(suffix=".db")
@@ -205,37 +194,30 @@ def _selftest():
     check("ack sets processed=1", stats["processed"] == 1)
     check("stats shows total", stats["total_events"] == 1)
 
-    # subscribe with type filter
     bus.publish("inbox_triage", "new_email", {"subject": "Hello"})
     bus.publish("watchdog", "sensor_alert", {"sensor": "temp"})
     filtered = list(bus.subscribe(since_id=0, type="new_email"))
     check("type filter works", len(filtered) == 1)
     check("filtered has the right type", filtered[0]["type"] == "new_email")
 
-    # subscribe with source filter
     src_filtered = list(bus.subscribe(since_id=0, source="watchdog"))
     check("source filter works", len(src_filtered) == 2)
 
-    # ack_many
     new_ids = []
     for i in range(3):
         eid = bus.publish("test", "test_type", {"n": i})
         new_ids.append(eid)
     bus.ack_many(new_ids)
     stats = bus.stats()
-    # 4 processed: 1 (first ack) + 3 (ack_many of events 4-6)
     check("processed=4 after ack_many", stats["processed"] == 4)
 
-    # by_type in stats
     check("by_type has watchdog category",
           stats["by_type"].get("motion_detected", 0) >= 1)
 
-    # subscribe_blocking (with short timeout)
     polling_events = list(bus.subscribe_blocking(
         since_id=bus.last_id(), type="test_type", poll_interval=0.1, timeout=0.3))
     check("blocking with no new events returns empty", len(polling_events) == 0)
 
-    # Publish and catch via blocking (cross-thread publish)
     import threading as th
     def delayed_publish():
         time.sleep(0.2)

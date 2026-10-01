@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Knowledge search — embed a query, cosine-sim against the index, return top results.
+"""Embed a query, cosine-sim against the index, return top results.
 
 Usage:
     python3 knowledge_search.py "your query here" [--top 10] [--min-score 0.3]
@@ -21,17 +21,14 @@ def embed(text):
         return json.loads(r.read())["embedding"]
 
 def search(query, top=10, min_score=0.3):
-    # Load index
     idx = np.load(os.path.join(INDEX_DIR, "index.npz"))
     embeddings = idx["embeddings"]  # (N, 768)
 
-    # Load metadata
     metas = []
     with open(os.path.join(INDEX_DIR, "meta.jsonl")) as f:
         for line in f:
             metas.append(json.loads(line))
 
-    # Embed query
     q_vec = np.array(embed(query), dtype=np.float32)
 
     # Cosine similarity (normalized dot product)
@@ -41,7 +38,6 @@ def search(query, top=10, min_score=0.3):
         return []
     scores = np.dot(embeddings, q_vec) / (norms * q_norm + 1e-10)
 
-    # Get top indices above threshold
     indices = np.where(scores >= min_score)[0]
     order = indices[np.argsort(-scores[indices])][:top]
 
@@ -49,7 +45,6 @@ def search(query, top=10, min_score=0.3):
     for i in order:
         m = metas[i]
         text = m.get("text", "")[:300]
-        # Truncate to first sentence-ish
         text = text.strip()[:250]
         results.append({
             "score": round(float(scores[i]), 3),

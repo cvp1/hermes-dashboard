@@ -1,20 +1,9 @@
 #!/usr/bin/env python3
-"""Inbox Triage Agent — watch Gmail + Proton for urgent emails between daily briefs.
-
-Runs every 30min: checks Gmail (via Google API) and Proton (via Bridge IMAP
-port 1144) for new email since last check, classifies each by urgency, and
-alerts if anything needs same-day attention.
-
-Design:
-  - Gmail via Google API (already OAuth-authenticated) — no Claude dependency
-  - Proton via local Bridge IMAP (127.0.0.1:1144, self-signed cert)
-  - Classifies with local gemma4:e4b on .21 — sensitive data stays local
-  - Tracks state in a JSON file (last_check timestamp, seen IDs)
-  - Alerts via Proton email only when something actionable appears
-  - Best-effort: failures degrade silently (the morning brief is the source of truth)
+"""Check Gmail (Google API) and Proton (Bridge IMAP) for new mail, classify urgency
+with a local model, and email an alert when something is urgent.
 
 Usage:
-    python3 inbox_triage.py [--dry-run] [--alert-email craig.vandeputte@proton.me]
+    python3 inbox_triage.py [--dry-run] [--alert-email you@example.com]
 """
 import datetime as dt
 import email as eml
@@ -79,7 +68,6 @@ def _fetch_emails(since_iso, max_results=15):
 
     query = "in:inbox"
     if since_iso:
-        # Use date-based query for simplicity
         d = dt.datetime.fromisoformat(since_iso)
         query += " after:%s" % d.strftime("%Y/%m/%d")
 
@@ -112,11 +100,7 @@ def _fetch_emails(since_iso, max_results=15):
 
 
 def _fetch_proton_emails(max_results=15):
-    """Fetch unseen inbox messages via Proton Mail Bridge IMAP.
-
-    Returns same dict format as _fetch_emails() with a ``source``: ``"proton"``
-    key so we can distinguish sources later. Best-effort — failures return [].
-    """
+    """Fetch unseen inbox messages via Proton Mail Bridge IMAP; returns [] on failure."""
     pw_file = os.path.expanduser(PROTON_PW_FILE)
     if not os.path.isfile(pw_file):
         print("  Proton: no password file at %s" % pw_file, file=sys.stderr)
@@ -163,7 +147,6 @@ def _fetch_proton_emails(max_results=15):
                 if isinstance(decode_header(msg.get("Subject", "(no subject)"))[0][0], bytes) \
                 else decode_header(msg.get("Subject", "(no subject)"))[0][0]
 
-            # Get plain-text snippet
             snippet = ""
             if msg.is_multipart():
                 for part in msg.walk():
@@ -199,7 +182,7 @@ def _fetch_proton_emails(max_results=15):
 
 
 def _classify_local(email_text):
-    """Classify an email using local gemma4:e4b on .21. Returns (category, urgency)."""
+    """Classify an email with the local model as URGENT, FYI, or NOISE."""
     prompt = (
         "Classify this email. Reply with exactly one word:\n"
         "URGENT (needs same-day reply, deadline, client issue)\n"
@@ -287,7 +270,7 @@ def main():
     print("Inbox triage — checking since %s" % (since or "start of day"),
           file=sys.stderr)
 
-    # Fetch from both Gmail and Proton (Gmail uses date-based since, Proton uses UNSEEN)
+    # Gmail filters by date; Proton by UNSEEN.
     gmail_emails = _fetch_emails(since)
     proton_emails = _fetch_proton_emails()
 
@@ -305,7 +288,6 @@ def main():
         print(json.dumps({"summary":"Triage: no new emails","count":0,"emails":[]}))
         return 0
 
-    # Classify each new email
     urgent = []
     for e in new_emails:
         tag = "[G]" if e["source"] == "gmail" else "[P]"
@@ -322,9 +304,8 @@ def main():
         flag = label.get(cat, "?")
         print("  %s %s %s — %s" % (tag, flag, e["subject"][:60], cat), file=sys.stderr)
 
-    # Update state — keep IDs from both sources
     all_ids = set(e["id"] for e in all_emails)
-    state["seen_ids"] = sorted(all_ids)[-200:]  # keep last 200
+    state["seen_ids"] = sorted(all_ids)[-200:]
     state["last_check"] = _now_iso()
 
     if args.dry_run:
@@ -338,7 +319,6 @@ def main():
         return 0
 
     if urgent:
-        # Alert
         body = _format_alert(new_emails)
         try:
             sys.path.insert(0, CC)
